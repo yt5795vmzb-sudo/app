@@ -1,0 +1,27 @@
+{
+  "summary": "First test run of TBIB-courses (Expo mobile + FastAPI). Backend: 31/31 pytest tests passed (auth, courses+filters, teacher CRUD, lessons w/ 403 before approval & 200 after, enrollment flow w/ duplicate 409 & approve/reject, teacher stats, reviews gated by approved enrollment, AI SSE streaming with [DONE] and persisted assistant turn). Frontend (390x844 Expo web): welcome screen renders in Arabic/RTL with teal design; login as student -> home shows 5 courses, filters (year/wilaya/module) + search chips visible; course detail -> enroll -> checkout (ref input + submit) -> returns to course detail with 'في انتظار تأكيد الأستاذ' pending button; login as teacher -> tab-learn opens teacher dashboard with stats (courses/students/pending/revenue), requests list with approve/reject per-row testIDs, new-course button; assistant streams Claude response ('Hi! 👋') and renders chat bubbles; profile shows AR/FR toggle, instructor-type selector, CCP + RIP fields.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (react-native-web)", "issues": ["Console warnings: 'props.pointerEvents is deprecated. Use style.pointerEvents' and '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Web-only noise, no functional impact; main agent may ignore unless targeting zero-warning build."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is a single ~635-line file; still readable but approaching the split threshold—consider separating routers (auth/courses/lessons/enrollments/reviews/ai) and models for maintainability.",
+    "Teacher endpoints use role check via dependency (good). Enroll endpoint rejects teachers correctly. All responses exclude Mongo _id via Pydantic alias.",
+    "AI chat uses emergentintegrations LlmChat with claude-sonnet-5-5 and streams TextDelta -> SSE 'data: {delta}' + '[DONE]' terminator; persists both user and assistant turns.",
+    "Password hashing uses bcrypt; JWT 30-day expiry from env; no credentials hardcoded."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (31/31)", "frontend": "100% of critical flows (student enroll, teacher dashboard+approve request already approved, assistant SSE, profile toggle)"},
+  "seed_data_creation": "Pytest creates temporary 'TEST_' prefixed student + course + lesson + enrollment and cleans them up in test_zz_cleanup. One UI-driven enrollment (REF-UI-TEST-001) was created on course Préparation au Résidanat — Pédiatrie as student@tbib.dz and is currently approved (visible in teacher dashboard). Safe to leave or let main agent clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BASE_URL comes from EXPO_PUBLIC_BACKEND_URL. Test credentials in /app/memory/test_credentials.md. Seed is idempotent (skips if teacher@tbib.dz exists). After running backend_test.py student@tbib.dz has one approved enrollment on 'Préparation au Résidanat — Pédiatrie' and left a 4-star review—reset via Mongo if a clean state is needed. Default UI language is Arabic (RTL); use testIDs rather than visible text selectors.",
+  "rca_of_issue": "N/A — no bugs found this iteration."
+}

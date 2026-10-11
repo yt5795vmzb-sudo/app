@@ -1,0 +1,308 @@
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { storage } from "@/src/utils/storage";
+
+export type Lang = "ar" | "fr";
+
+const ar = {
+  tagline: "منصة دروس الطب لطلبة كل ولايات الجزائر",
+  heroSub: "دورات يقترحها دكاترة وطلبة متفوقون حقيقيون، من السنة الأولى حتى الإقامة.",
+  roleStudentDesc: "أبحث عن دورات وأشتريها",
+  roleTeacherDesc: "دكتور أو طالب متفوق، أنشر دوراتي وأبيعها",
+  instructorType: "صفتك",
+  doctor: "دكتور",
+  topStudent: "طالب متفوق",
+  statWilayas: "69 ولاية",
+  statYears: "السنة 1 → 7",
+  statTeachers: "دكاترة ومتفوقون",
+  coursesFound: "{n} دورة متاحة",
+  becomeInstructor: "شارك علمك واربح من دوراتك",
+  getStarted: "إنشاء حساب",
+  login: "تسجيل الدخول",
+  register: "إنشاء حساب",
+  email: "البريد الإلكتروني",
+  password: "كلمة المرور",
+  name: "الاسم الكامل",
+  student: "طالب",
+  teacher: "مقدّم دورات",
+  iAm: "أنا",
+  wilaya: "الولاية",
+  chooseWilaya: "اختر الولاية",
+  studyYear: "السنة الدراسية",
+  year: "السنة {n}",
+  haveAccount: "لديك حساب؟ سجّل الدخول",
+  noAccount: "ليس لديك حساب؟ أنشئ حساباً",
+  home: "الرئيسية",
+  learn: "دوراتي",
+  dashboard: "لوحتي",
+  assistant: "المساعد",
+  profile: "حسابي",
+  hello: "مرحباً، {name}",
+  discover: "اكتشف دورات الطب",
+  search: "ابحث عن دورة، مقياس أو أستاذ...",
+  all: "الكل",
+  module: "المقياس",
+  chooseModule: "اختر المقياس",
+  noCourses: "لا توجد دورات لهذا الاختيار.",
+  retry: "إعادة المحاولة",
+  loadError: "تعذّر التحميل. تحقق من الاتصال.",
+  da: "دج",
+  free: "مجاني",
+  lessons: "دروس",
+  studentsCount: "طلاب",
+  curriculum: "المحتوى",
+  reviews: "التقييمات",
+  requestEnroll: "طلب التسجيل",
+  pendingApproval: "في انتظار تأكيد الأستاذ",
+  approved: "مقبول",
+  pending: "قيد الانتظار",
+  rejected: "مرفوض",
+  startLearning: "ابدأ التعلم",
+  manageCourse: "إدارة الدورة",
+  paymentTitle: "طلب التسجيل",
+  stepCourse: "1. الدورة",
+  stepPay: "2. ادفع للأستاذ",
+  stepPayHint: "حوّل المبلغ عبر بريدي موب أو CCP إلى حساب الأستاذ أدناه.",
+  stepRef: "3. أكّد الدفع",
+  ccp: "CCP",
+  baridimob: "بريدي موب",
+  ccpAccount: "رقم حساب CCP",
+  rip: "RIP بريدي موب",
+  phone: "الهاتف",
+  paymentRef: "رقم العملية / المرجع",
+  paymentRefHint: "مثال: رقم الوصل أو رقم التحويل",
+  note: "ملاحظة للأستاذ (اختياري)",
+  submitRequest: "إرسال الطلب",
+  requestSent: "تم إرسال طلبك، سيؤكد الأستاذ الدفع قريباً",
+  teacherNoPayment: "لم يضف الأستاذ معلومات الدفع بعد. تواصل معه عبر الهاتف.",
+  noEnrollments: "لم تسجّل في أي دورة بعد.",
+  browse: "تصفّح الدورات",
+  approve: "قبول",
+  reject: "رفض",
+  newCourse: "دورة جديدة",
+  editCourse: "تعديل الدورة",
+  title: "العنوان",
+  description: "الوصف",
+  price: "السعر (دج)",
+  coverImage: "رابط صورة الغلاف (اختياري)",
+  save: "حفظ",
+  addLesson: "إضافة درس",
+  lessonTitle: "عنوان الدرس",
+  lessonContent: "محتوى الدرس (نص)",
+  videoUrl: "رابط الفيديو (يوتيوب / درايف)",
+  delete: "حذف",
+  openVideo: "مشاهدة الفيديو",
+  language: "اللغة",
+  logout: "تسجيل الخروج",
+  bio: "نبذة عنك",
+  paymentInfo: "معلومات الدفع (تظهر للطلبة)",
+  saved: "تم الحفظ",
+  writeReview: "اكتب تقييماً",
+  submit: "إرسال",
+  noReviews: "لا توجد تقييمات بعد.",
+  comment: "تعليقك",
+  askAnything: "اسأل أي سؤال طبي...",
+  aiTitle: "مساعد الدراسة الذكي",
+  aiWelcome: "أنا مساعدك في دراسة الطب. اسألني عن أي مقياس، أطلب ملخصاً أو أسئلة QCM.",
+  aiSuggest: ["لخّص لي دورة كريبس", "اشرح قراءة الـ ECG خطوة بخطوة", "أعطني 5 أسئلة QCM في التشريح", "ما الفرق بين القصور الكلوي الحاد والمزمن؟"],
+  clearChat: "محادثة جديدة",
+  aiDisclaimer: "أداة تعليمية فقط، لا تعوّض الرأي الطبي.",
+  requests: "الطلبات",
+  myCourses: "دوراتي",
+  revenue: "المداخيل",
+  coursesCount: "دورات",
+  noRequests: "لا توجد طلبات حالياً.",
+  noTeacherCourses: "لم تنشر أي دورة بعد.",
+  locked: "سجّل في الدورة لفتح الدرس",
+  by: "مع",
+  confirmDelete: "اضغط مرة أخرى للتأكيد",
+  ref: "المرجع",
+  method: "طريقة الدفع",
+  required: "يرجى ملء الحقول المطلوبة",
+  reviewSaved: "شكراً على تقييمك",
+  lessonAdded: "تمت إضافة الدرس",
+  deleted: "تم الحذف",
+  video: "فيديو",
+  text: "نص",
+  edit: "تعديل",
+  role: "الدور",
+  noLessons: "لا توجد دروس بعد.",
+};
+
+type Dict = typeof ar;
+
+const fr: Dict = {
+  tagline: "Les cours de médecine pour les étudiants de toutes les wilayas",
+  heroSub: "Des cours proposés par de vrais médecins et étudiants majors, de la 1re année au résidanat.",
+  roleStudentDesc: "Je cherche et j'achète des cours",
+  roleTeacherDesc: "Médecin ou étudiant major, je publie et vends mes cours",
+  instructorType: "Vous êtes",
+  doctor: "Médecin",
+  topStudent: "Étudiant major",
+  statWilayas: "69 wilayas",
+  statYears: "1re → 7e année",
+  statTeachers: "Médecins & majors",
+  coursesFound: "{n} cours disponibles",
+  becomeInstructor: "Partagez votre savoir et vendez vos cours",
+  getStarted: "Créer un compte",
+  login: "Se connecter",
+  register: "Créer un compte",
+  email: "E-mail",
+  password: "Mot de passe",
+  name: "Nom complet",
+  student: "Étudiant",
+  teacher: "Formateur",
+  iAm: "Je suis",
+  wilaya: "Wilaya",
+  chooseWilaya: "Choisir la wilaya",
+  studyYear: "Année d'études",
+  year: "{n}e année",
+  haveAccount: "Déjà un compte ? Se connecter",
+  noAccount: "Pas de compte ? Inscrivez-vous",
+  home: "Accueil",
+  learn: "Mes cours",
+  dashboard: "Tableau",
+  assistant: "Assistant",
+  profile: "Profil",
+  hello: "Bonjour, {name}",
+  discover: "Découvrez les cours de médecine",
+  search: "Rechercher un cours, module ou enseignant...",
+  all: "Tous",
+  module: "Module",
+  chooseModule: "Choisir le module",
+  noCourses: "Aucun cours pour ce filtre.",
+  retry: "Réessayer",
+  loadError: "Échec du chargement. Vérifiez la connexion.",
+  da: "DA",
+  free: "Gratuit",
+  lessons: "leçons",
+  studentsCount: "étudiants",
+  curriculum: "Programme",
+  reviews: "Avis",
+  requestEnroll: "Demander l'inscription",
+  pendingApproval: "En attente de confirmation",
+  approved: "Accepté",
+  pending: "En attente",
+  rejected: "Refusé",
+  startLearning: "Commencer",
+  manageCourse: "Gérer le cours",
+  paymentTitle: "Demande d'inscription",
+  stepCourse: "1. Le cours",
+  stepPay: "2. Payez l'enseignant",
+  stepPayHint: "Envoyez le montant via BaridiMob ou CCP au compte de l'enseignant ci-dessous.",
+  stepRef: "3. Confirmez le paiement",
+  ccp: "CCP",
+  baridimob: "BaridiMob",
+  ccpAccount: "Compte CCP",
+  rip: "RIP BaridiMob",
+  phone: "Téléphone",
+  paymentRef: "N° de transaction / référence",
+  paymentRefHint: "Ex : numéro du reçu ou du virement",
+  note: "Note pour l'enseignant (optionnel)",
+  submitRequest: "Envoyer la demande",
+  requestSent: "Demande envoyée, l'enseignant confirmera le paiement",
+  teacherNoPayment: "L'enseignant n'a pas encore ajouté ses infos de paiement. Contactez-le par téléphone.",
+  noEnrollments: "Vous n'êtes inscrit à aucun cours.",
+  browse: "Parcourir les cours",
+  approve: "Accepter",
+  reject: "Refuser",
+  newCourse: "Nouveau cours",
+  editCourse: "Modifier le cours",
+  title: "Titre",
+  description: "Description",
+  price: "Prix (DA)",
+  coverImage: "Lien de l'image de couverture (optionnel)",
+  save: "Enregistrer",
+  addLesson: "Ajouter une leçon",
+  lessonTitle: "Titre de la leçon",
+  lessonContent: "Contenu de la leçon (texte)",
+  videoUrl: "Lien vidéo (YouTube / Drive)",
+  delete: "Supprimer",
+  openVideo: "Voir la vidéo",
+  language: "Langue",
+  logout: "Se déconnecter",
+  bio: "Bio",
+  paymentInfo: "Infos de paiement (visibles par les étudiants)",
+  saved: "Enregistré",
+  writeReview: "Laisser un avis",
+  submit: "Envoyer",
+  noReviews: "Aucun avis pour l'instant.",
+  comment: "Votre commentaire",
+  askAnything: "Posez une question médicale...",
+  aiTitle: "Assistant d'étude IA",
+  aiWelcome: "Je suis votre assistant pour les études de médecine. Demandez un résumé, une explication ou des QCM.",
+  aiSuggest: ["Résume le cycle de Krebs", "Explique la lecture de l'ECG pas à pas", "Donne-moi 5 QCM d'anatomie", "Différence entre IRA et IRC ?"],
+  clearChat: "Nouvelle discussion",
+  aiDisclaimer: "Outil pédagogique, ne remplace pas un avis médical.",
+  requests: "Demandes",
+  myCourses: "Mes cours",
+  revenue: "Revenus",
+  coursesCount: "cours",
+  noRequests: "Aucune demande pour le moment.",
+  noTeacherCourses: "Vous n'avez publié aucun cours.",
+  locked: "Inscrivez-vous pour débloquer",
+  by: "par",
+  confirmDelete: "Appuyez encore pour confirmer",
+  ref: "Réf.",
+  method: "Mode de paiement",
+  required: "Veuillez remplir les champs requis",
+  reviewSaved: "Merci pour votre avis",
+  lessonAdded: "Leçon ajoutée",
+  deleted: "Supprimé",
+  video: "Vidéo",
+  text: "Texte",
+  edit: "Modifier",
+  role: "Rôle",
+  noLessons: "Aucune leçon pour l'instant.",
+};
+
+const dicts: Record<Lang, Dict> = { ar, fr };
+type Key = { [K in keyof Dict]: Dict[K] extends string ? K : never }[keyof Dict];
+
+type Ctx = {
+  lang: Lang;
+  isRTL: boolean;
+  setLang: (l: Lang) => void;
+  t: (k: Key, p?: Record<string, string | number>) => string;
+  d: Dict;
+  row: "row" | "row-reverse";
+  ta: "left" | "right";
+};
+
+const I18nContext = createContext<Ctx | null>(null);
+const LANG_KEY = "app_lang";
+
+export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const [lang, setLangState] = useState<Lang>("ar");
+
+  useEffect(() => {
+    storage.getItem(LANG_KEY, "ar").then((v) => setLangState(v === "fr" ? "fr" : "ar"));
+  }, []);
+
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    storage.setItem(LANG_KEY, l);
+  }, []);
+
+  const value = useMemo<Ctx>(() => {
+    const d = dicts[lang];
+    const isRTL = lang === "ar";
+    return {
+      lang, isRTL, setLang, d,
+      row: isRTL ? "row-reverse" : "row",
+      ta: isRTL ? "right" : "left",
+      t: (k, p) => {
+        let s = d[k] as string;
+        if (p) Object.entries(p).forEach(([pk, pv]) => { s = s.replace(`{${pk}}`, String(pv)); });
+        return s;
+      },
+    };
+  }, [lang, setLang]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const c = useContext(I18nContext);
+  if (!c) throw new Error("useI18n outside provider");
+  return c;
+}

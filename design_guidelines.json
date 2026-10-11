@@ -1,0 +1,194 @@
+{
+  "app_name": "MedDorous",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A trustworthy, clean, and highly readable iOS-native interface tailored for academic focus, utilizing a calming botanical sage palette to evoke medical professionalism.",
+  "color": {
+    "surface": "#F9FAFB",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1F2937",
+    "surfaceTertiary": "#F3F4F6",
+    "onSurfaceTertiary": "#374151",
+    "surfaceInverse": "#111827",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#14532D",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#16A34A",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#4ADE80",
+    "onBrandSecondary": "#14532D",
+    "brandTertiary": "#DCFCE7",
+    "onBrandTertiary": "#14532D",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#6B7280",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#D1D5DB",
+    "divider": "#F3F4F6",
+    "muted": "#6B7280"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Handle spacing correctly dont have extra spaces where its not required, handle padding and margin corectly and subtle for buttons and components",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Apply to sticky headers over scrolling content",
+      "Apply to bottom tab bar when content scrolls behind it",
+      "Apply frosted glass overlay to Hero course cards"
+    ],
+    "dont's": [
+      "Do not apply to form fields or list rows",
+      "Do not stack more than 2 blur surfaces per screen"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Auth & Onboarding",
+      "purpose": "Allow students and teachers to create accounts, select their roles, and login.",
+      "states": {
+        "loading": "Centered brand primary spinner.",
+        "empty": "N/A",
+        "error": "Toast or inline message with retry button."
+      },
+      "layout": "Clean top-down form. Use segmented control for Role (Student / Teacher). Submit button sticky at the bottom."
+    },
+    {
+      "name": "Home (Course Marketplace)",
+      "purpose": "Allow students to discover, search, and filter medical courses by Year, Wilaya, and Specialty.",
+      "states": {
+        "loading": "Skeleton grid of course cards.",
+        "empty": "Illustration of a blank notebook (online learning blank state) + 'No courses found for this filter.'",
+        "error": "Error message with 'Retry' CTA."
+      },
+      "layout": "Top section: Search bar + sticky horizontal scrollable chips for filters (Wilaya, Year 1-7). Below: 2-column grid of course cards. Cards show title, instructor, and subtle rating badge."
+    },
+    {
+      "name": "Course Detail",
+      "purpose": "Provide comprehensive course info to convince students to request enrollment.",
+      "states": {
+        "loading": "Skeleton of hero and tabbed list.",
+        "empty": "N/A",
+        "error": "Failed to load course details."
+      },
+      "layout": "Hero image with vertical gradient-to-dark scrim, large title, rating. Below hero: segmented control (Curriculum, Reviews). Curriculum is an accordion list of lessons. IMPORTANT: Sticky 'Request Enrollment' button at the bottom safe-area in a glass container."
+    },
+    {
+      "name": "Checkout (Payment Request)",
+      "purpose": "Guide students through the manual payment process via CCP/BaridiMob.",
+      "states": {
+        "loading": "Spinner during receipt upload.",
+        "empty": "N/A",
+        "error": "Upload failed message."
+      },
+      "layout": "Step 1: Course Summary. Step 2: Teacher's CCP/BaridiMob Account Details displayed prominently in a brandTertiary tinted card. Step 3: 'Upload Receipt' button (opens image picker). Step 4: Sticky 'Submit Request' button at bottom."
+    },
+    {
+      "name": "Teacher Dashboard",
+      "purpose": "Let teachers manage their courses and approve/reject enrollment requests.",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "Illustration + 'No pending requests.'",
+        "error": "Retry loading requests."
+      },
+      "layout": "Tabbed view: 'My Courses' (list) & 'Pending Requests' (list of students who uploaded receipts). Each request row has an 'Approve' (brandPrimary) and 'Reject' (surfaceTertiary) action button."
+    },
+    {
+      "name": "Lesson Viewer",
+      "purpose": "Consume course content (text + video link).",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "N/A",
+        "error": "Failed to load lesson."
+      },
+      "layout": "Video thumbnail linking out to YouTube/Drive (if external) or embedded video player. Below: Scrollable text content area with generous editorial spacing."
+    },
+    {
+      "name": "AI Study Assistant",
+      "purpose": "Chat interface for students to ask medical doubts.",
+      "states": {
+        "loading": "Typing indicator...",
+        "empty": "Welcome message with suggested medical prompts.",
+        "error": "Failed to send message."
+      },
+      "layout": "Standard chat layout. Bubbles: user (brandTertiary), AI (surfaceSecondary). Sticky input field at bottom inside KeyboardAvoidingView."
+    },
+    {
+      "name": "Profile & Settings",
+      "purpose": "Manage user info and toggle language (Arabic/French).",
+      "states": {
+        "loading": "Skeleton rows.",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "List layout. Avatar at top. Toggle row for Language (AR/FR) which triggers RTL switch. Logout button at bottom."
+    }
+  ],
+  "images": {
+    "onboarding_hero": {
+      "url": "https://images.unsplash.com/photo-1656701718207-2aa066d02de6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxhbGdlcmlhJTIwbWVkaWNhbCUyMHN0dWRlbnR8ZW58MHx8fHwxNzkxNzQyMzg1fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Algerian medical student graduation"
+    },
+    "empty_courses": {
+      "url": "https://images.unsplash.com/photo-1588702547954-4800ead296ef?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxvbmxpbmUlMjBsZWFybmluZyUyMGJsYW5rJTIwc3RhdGV8ZW58MHx8fHwxNzkxNzQyMzg1fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Blank notebook on a desk for empty state"
+    },
+    "course_hero_fallback": {
+      "url": "https://images.unsplash.com/photo-1532153470116-e8c2088b8ac1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwdGV4dGJvb2slMjBhbmF0b215fGVufDB8fHx8MTc5MTc0MjM4NXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Medical textbook anatomy diagrams"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the '1 iOS-Native Clean' personality guidelines. Avoid heavy shadows and dense dashboards.",
+    "BANNED COLORS: Do not use any blues, indigos, purples, or teals. The primary brand color is a Medical Forest Green (#14532D).",
+    "RTL & BILINGUAL SUPPORT: The app requires Arabic (Default, RTL) and French (LTR). Use React Native's I18nManager.forceRTL() conditionally, or apply standard flex layout properties (e.g., flex-start/flex-end) that adapt natively to I18nManager direction.",
+    "MANUAL PAYMENT FLOW: The checkout is NOT a Stripe integration. It must show Teacher's CCP/BaridiMob info, and include a file/image picker for the student to upload the receipt.",
+    "MARKETPLACE HOME: Implement sticky horizontal filter chips for Wilaya (1-58) and Study Year (1-7) below the search bar.",
+    "COURSE DETAIL: Always use a vertical gradient-to-dark scrim over the hero image to ensure the course title is readable (WCAG contrast).",
+    "STICKY CTA: Ensure the 'Request Enrollment' button is sticky at the bottom of the Course Detail screen, floating above the scrollable curriculum."
+  ]
+}
