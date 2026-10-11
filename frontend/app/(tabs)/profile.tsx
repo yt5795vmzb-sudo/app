@@ -57,6 +57,22 @@ export default function Profile() {
           </View>
         </View>
 
+        {isTeacher && (
+          <Pressable testID="profile-verification-card" onPress={() => router.push("/verification" as any)} style={[styles.verif, { flexDirection: row }, user.verified && styles.verifOn]}>
+            <View style={[styles.verifIcon, user.verified && { backgroundColor: colors.brand }]}>
+              <Icon name={user.verified ? "check-decagram" : user.verification_status === "pending" ? "clock-outline" : "shield-account-outline"} size={24}
+                color={user.verified ? colors.brandSecondary : user.verification_status === "rejected" ? colors.error : colors.brand} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.section, { textAlign: ta }]}>{t("verification")}</Text>
+              <Text style={[styles.email, { textAlign: ta }]} testID="profile-verification-status">
+                {user.verified ? t("verifApproved") : user.verification_status === "pending" ? t("verifPending") : user.verification_status === "rejected" ? t("verifRejected") : t("verifNone")}
+              </Text>
+            </View>
+            <Icon name={ta === "right" ? "chevron-left" : "chevron-right"} color={colors.muted} />
+          </Pressable>
+        )}
+
         <View style={styles.card}>
           <Text style={[styles.section, { textAlign: ta }]}>{t("language")}</Text>
           <Segmented testID="profile-language" value={lang} onChange={setLang}
@@ -117,6 +133,9 @@ const useStyles = makeStyles((c) => ({
   roleTag: { backgroundColor: c.brandTertiary, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3, gap: 4, alignItems: "center", marginTop: 2 },
   roleText: { fontSize: font.sm, fontWeight: "700", color: c.onBrandTertiary },
   card: { backgroundColor: c.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: c.border },
+  verif: { backgroundColor: c.surfaceSecondary, borderRadius: radius.md, padding: spacing.md, gap: spacing.md, alignItems: "center", borderWidth: 1.5, borderColor: c.brandPrimary },
+  verifOn: { backgroundColor: c.brandTertiary, borderColor: c.brandTertiary },
+  verifIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
   section: { fontSize: font.lg, fontWeight: "700", color: c.onSurface },
   label: { fontSize: font.sm + 1, fontWeight: "600", color: c.onSurfaceTertiary },
   select: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceSecondary, paddingHorizontal: spacing.md, alignItems: "center", justifyContent: "space-between" },

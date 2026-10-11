@@ -10,6 +10,7 @@ import { useToast } from "@/src/toast";
 import { api, CourseDetail } from "@/src/api";
 import { Button, Icon, Input, Loading, Segmented, formatPrice } from "@/src/components/ui";
 import { IMAGES } from "@/src/constants";
+import { ImageUploadField } from "@/src/components/ImageUpload";
 
 export default function Checkout() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,15 +24,16 @@ export default function Checkout() {
   const [method, setMethod] = useState<"baridimob" | "ccp">("baridimob");
   const [ref, setRef] = useState("");
   const [note, setNote] = useState("");
+  const [receipt, setReceipt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { api<CourseDetail>(`/courses/${id}`).then(setData).catch((e) => toast(e.message, "error")); }, [id, toast]);
 
   const submit = async () => {
-    if (ref.trim().length < 3) { toast(t("required"), "error"); return; }
+    if (ref.trim().length < 3 && !receipt) { toast(t("refOrReceipt"), "error"); return; }
     setBusy(true);
     try {
-      await api(`/courses/${id}/enroll`, { method: "POST", body: { payment_method: method, payment_ref: ref.trim(), note: note.trim() || null } });
+      await api(`/courses/${id}/enroll`, { method: "POST", body: { payment_method: method, payment_ref: ref.trim(), receipt_path: receipt, note: note.trim() || null } });
       toast(t("requestSent"));
       router.back();
     } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
@@ -72,6 +74,8 @@ export default function Checkout() {
         <Text style={[styles.label, { textAlign: ta }]}>{t("method")}</Text>
         <Segmented testID="checkout-method" value={method} onChange={setMethod}
           options={[{ value: "baridimob", label: t("baridimob") }, { value: "ccp", label: t("ccp") }]} />
+        <ImageUploadField kind="receipt" label={t("receipt")} value={receipt} onChange={setReceipt} testID="checkout-receipt-upload" />
+        <Text style={[styles.meta, { textAlign: ta }]}>{t("receiptHint")}</Text>
         <Input testID="checkout-ref-input" label={t("paymentRef")} placeholder={t("paymentRefHint")} value={ref} onChangeText={setRef} />
         <Input testID="checkout-note-input" label={t("note")} value={note} onChangeText={setNote} multiline />
         <View style={[{ flexDirection: row, gap: spacing.sm, alignItems: "center" }]}>

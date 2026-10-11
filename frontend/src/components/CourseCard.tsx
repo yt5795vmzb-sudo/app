@@ -32,7 +32,7 @@ export function CourseCard({ course }: { course: Course }) {
         <Text style={[styles.title, { textAlign: ta }]} numberOfLines={2}>{course.title}</Text>
         <Text style={[styles.teacher, { textAlign: ta }]} numberOfLines={1}>{course.teacher_name}</Text>
         <View style={{ alignItems: ta === "right" ? "flex-end" : "flex-start" }}>
-          <InstructorBadge type={course.teacher_type} small testID={`course-card-badge-${course.id}`} />
+          <InstructorBadge type={course.teacher_type} verified={course.teacher_verified} small testID={`course-card-badge-${course.id}`} />
         </View>
         <View style={[styles.footer, { flexDirection: row }]}>
           <Text style={styles.price}>{formatPrice(course.price, t("da"), t("free"))}</Text>

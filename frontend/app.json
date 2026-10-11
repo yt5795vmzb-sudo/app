@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.tibbcourses.pszjuf"
+      "bundleIdentifier": "com.emergent.tibbcourses.pszjuf",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Attach payment receipts and verification documents",
+        "NSCameraUsageDescription": "Photograph receipts and verification documents"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +43,14 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-status-bar",
-      "@react-native-vector-icons/material-design-icons"
+      "@react-native-vector-icons/material-design-icons",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach payment receipts and verification documents",
+          "cameraPermission": "Photograph receipts and verification documents"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

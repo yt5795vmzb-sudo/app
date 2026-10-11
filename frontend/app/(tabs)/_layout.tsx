@@ -13,6 +13,7 @@ export default function TabsLayout() {
   const { t } = useI18n();
   const { user, loading } = useAuth();
   if (!loading && !user) return <Redirect href={"/welcome" as any} />;
+  if (user?.role === "admin") return <Redirect href={"/admin" as any} />;
   const learnLabel = user?.role === "teacher" ? t("dashboard") : t("learn");
 
   if (usesNativeTabs) {

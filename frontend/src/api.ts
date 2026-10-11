@@ -1,29 +1,33 @@
+import { Platform } from "react-native";
 import { fetch as expoFetch } from "expo/fetch";
 
 export const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
 let token: string | null = null;
 export const setApiToken = (t: string | null) => { token = t; };
+export const getApiToken = () => token;
 
 export type User = {
-  id: string; email: string; name: string; role: "student" | "teacher";
+  id: string; email: string; name: string; role: "student" | "teacher" | "admin";
+  verified?: boolean; verification_status?: "none" | "pending" | "approved" | "rejected";
+  verification_doc?: string | null; verification_note?: string | null; verification_reason?: string | null; courses_count?: number;
   wilaya?: string | null; study_year?: number | null; bio?: string | null; instructor_type?: "doctor" | "top_student" | null;
   ccp_account?: string | null; baridimob_rip?: string | null; phone?: string | null;
 };
 export type Course = {
-  id: string; teacher_id: string; teacher_name: string; teacher_type?: string | null; title: string; description: string;
+  id: string; teacher_id: string; teacher_name: string; teacher_type?: string | null; teacher_verified?: boolean; title: string; description: string;
   module: string; study_year: number; wilaya: string; price: number; cover_image?: string | null;
   rating_avg: number; rating_count: number; lessons_count: number; students_count: number;
 };
 export type Enrollment = {
   id: string; course_id: string; course_title: string; student_name: string; student_wilaya?: string | null;
-  price: number; payment_method: string; payment_ref: string; note?: string | null;
+  price: number; payment_method: string; payment_ref: string; receipt_path?: string | null; note?: string | null;
   status: "pending" | "approved" | "rejected"; created_at: string; course?: Course | null;
 };
 export type Review = { id: string; student_name: string; rating: number; comment: string; created_at: string };
 export type LessonMeta = { id: string; title: string; order: number; has_video: boolean };
 export type CourseDetail = {
   course: Course; lessons: LessonMeta[]; enrollment: Enrollment | null; is_owner: boolean; has_access: boolean;
-  teacher: { id: string; name: string; bio?: string | null; instructor_type?: string | null; study_year?: number | null; wilaya?: string | null; ccp_account?: string | null; baridimob_rip?: string | null; phone?: string | null } | null;
+  teacher: { id: string; name: string; bio?: string | null; instructor_type?: string | null; study_year?: number | null; verified?: boolean; wilaya?: string | null; ccp_account?: string | null; baridimob_rip?: string | null; phone?: string | null } | null;
 };
 export type Lesson = { id: string; course_id: string; course_title: string; title: string; content: string; video_url?: string | null };
 export type ChatMsg = { id?: string; role: "user" | "assistant"; content: string };
@@ -68,4 +72,25 @@ export async function streamChat(message: string, language: string, onDelta: (s:
       if (j.delta) onDelta(j.delta);
     }
   }
+}
+
+export async function uploadImage(uri: string, name: string, type: string, kind: "receipt" | "verification"): Promise<string> {
+  const form = new FormData();
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(uri)).blob();
+    form.append("file", blob, name);
+  } else {
+    form.append("file", { uri, name, type } as any);
+  }
+  form.append("kind", kind);
+  const res = await fetch(`${BASE}/upload`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.detail || "Upload failed");
+  return data.path as string;
+}
+
+export function fileSource(path: string) {
+  return Platform.OS === "web"
+    ? { uri: `${BASE}/files/${path}?token=${token}` }
+    : { uri: `${BASE}/files/${path}`, headers: { Authorization: `Bearer ${token}` } };
 }

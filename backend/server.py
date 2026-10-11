@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header, UploadFile, File, Form, Query
+from fastapi.responses import StreamingResponse, Response
+from fastapi.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,6 +15,9 @@ import logging
 import re
 import bcrypt
 import jwt
+import uuid
+import requests
+from pymongo.errors import DuplicateKeyError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -23,10 +27,57 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALG = "HS256"
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+ADMIN_EMAIL = os.environ['ADMIN_EMAIL']
+ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
+
+# ---------- Object storage ----------
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+APP_NAME = "tbib-courses"
+storage_key = None
+
+
+def init_storage():
+    global storage_key
+    if storage_key:
+        return storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_LLM_KEY}, timeout=30)
+    resp.raise_for_status()
+    storage_key = resp.json()["storage_key"]
+    return storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    global storage_key
+    key = init_storage()
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type},
+                        data=data, timeout=120)
+    if resp.status_code >= 500:
+        if resp.status_code == 503:
+            storage_key = None
+        key = init_storage()
+        resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type},
+                            data=data, timeout=120)
+    if resp.status_code == 402:
+        raise HTTPException(402, "Storage credits exhausted")
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    global storage_key
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 503:
+        storage_key = None
+        key = init_storage()
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 app = FastAPI()
 api = APIRouter(prefix="/api")
-logger = logging.getLogger("meddorous")
+logger = logging.getLogger("tbib")
 logging.basicConfig(level=logging.INFO)
 
 
@@ -58,7 +109,8 @@ def oid(v: str) -> ObjectId:
 
 
 # ---------- Models ----------
-Role = Literal["student", "teacher"]
+Role = Literal["student", "teacher", "admin"]
+VerifStatus = Literal["none", "pending", "approved", "rejected"]
 InstructorType = Literal["doctor", "top_student"]
 
 
@@ -73,6 +125,12 @@ class User(BaseDocument):
     ccp_account: Optional[str] = None
     baridimob_rip: Optional[str] = None
     phone: Optional[str] = None
+    verified: bool = False
+    verification_status: VerifStatus = "none"
+    verification_doc: Optional[str] = None
+    verification_note: Optional[str] = None
+    verification_reason: Optional[str] = None
+    verification_requested_at: Optional[str] = None
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -80,6 +138,7 @@ class Course(BaseDocument):
     teacher_id: str
     teacher_name: str
     teacher_type: Optional[str] = None
+    teacher_verified: bool = False
     title: str
     description: str
     module: str
@@ -113,7 +172,8 @@ class Enrollment(BaseDocument):
     student_wilaya: Optional[str] = None
     price: int
     payment_method: str
-    payment_ref: str
+    payment_ref: str = ""
+    receipt_path: Optional[str] = None
     note: Optional[str] = None
     status: Literal["pending", "approved", "rejected"] = "pending"
     created_at: str = Field(default_factory=now_iso)
@@ -138,9 +198,9 @@ class ChatMessage(BaseDocument):
 # ---------- Inputs ----------
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=6, max_length=72)
     name: str = Field(min_length=2)
-    role: Role
+    role: Literal["student", "teacher"]
     wilaya: Optional[str] = None
     study_year: Optional[int] = None
     instructor_type: Optional[InstructorType] = None
@@ -181,8 +241,18 @@ class LessonIn(BaseModel):
 
 class EnrollIn(BaseModel):
     payment_method: Literal["ccp", "baridimob"]
-    payment_ref: str = Field(min_length=3)
+    payment_ref: str = ""
+    receipt_path: Optional[str] = None
     note: Optional[str] = None
+
+
+class VerifyIn(BaseModel):
+    doc_path: str
+    note: Optional[str] = None
+
+
+class RejectIn(BaseModel):
+    reason: Optional[str] = None
 
 
 class ReviewIn(BaseModel):
@@ -212,8 +282,12 @@ def make_token(user_id: str, role: str) -> str:
 async def current_user(authorization: Optional[str] = Header(None)) -> User:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Not authenticated")
+    return await user_from_token(authorization[7:])
+
+
+async def user_from_token(token: str) -> User:
     try:
-        claims = jwt.decode(authorization[7:], JWT_SECRET, algorithms=[JWT_ALG])
+        claims = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid or expired token")
     sub = claims.get("sub")
@@ -228,6 +302,12 @@ async def current_user(authorization: Optional[str] = Header(None)) -> User:
 async def teacher_user(user: User = Depends(current_user)) -> User:
     if user.role != "teacher":
         raise HTTPException(403, "Teachers only")
+    return user
+
+
+async def admin_user(user: User = Depends(current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(403, "Admin only")
     return user
 
 
@@ -336,6 +416,7 @@ async def course_detail(course_id: str, authorization: Optional[str] = Header(No
         "has_access": has_access,
         "teacher": {
             "id": teacher.id, "name": teacher.name, "bio": teacher.bio, "instructor_type": teacher.instructor_type,
+            "verified": teacher.verified,
             "study_year": teacher.study_year, "wilaya": teacher.wilaya,
             "ccp_account": teacher.ccp_account, "baridimob_rip": teacher.baridimob_rip, "phone": teacher.phone,
         } if teacher else None,
@@ -344,7 +425,8 @@ async def course_detail(course_id: str, authorization: Optional[str] = Header(No
 
 @api.post("/courses")
 async def create_course(body: CourseIn, user: User = Depends(teacher_user)):
-    c = Course(teacher_id=user.id, teacher_name=user.name, teacher_type=user.instructor_type, **body.model_dump())
+    c = Course(teacher_id=user.id, teacher_name=user.name, teacher_type=user.instructor_type,
+               teacher_verified=user.verified, **body.model_dump())
     res = await db.courses.insert_one(c.to_mongo())
     c.id = str(res.inserted_id)
     return c.model_dump()
@@ -420,6 +502,12 @@ async def enroll(course_id: str, body: EnrollIn, user: User = Depends(current_us
                                               "status": {"$in": ["pending", "approved"]}})
     if existing:
         raise HTTPException(409, "Request already exists")
+    if len(body.payment_ref.strip()) < 3 and not body.receipt_path:
+        raise HTTPException(400, "Payment reference or receipt photo required")
+    if body.receipt_path:
+        f = await db.files.find_one({"storage_path": body.receipt_path, "owner_id": user.id, "is_deleted": False})
+        if not f:
+            raise HTTPException(400, "Invalid receipt")
     e = Enrollment(course_id=course_id, course_title=course.title, teacher_id=course.teacher_id,
                    student_id=user.id, student_name=user.name, student_wilaya=user.wilaya,
                    price=course.price, **body.model_dump())
@@ -565,6 +653,107 @@ async def ai_chat(body: ChatIn, user: User = Depends(current_user)):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ---------- Files ----------
+ALLOWED_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic"}
+MAX_UPLOAD = 8 * 1024 * 1024
+
+
+@api.post("/upload")
+async def upload(file: UploadFile = File(...), kind: str = Form("receipt"), user: User = Depends(current_user)):
+    if kind not in ("receipt", "verification"):
+        raise HTTPException(400, "Invalid kind")
+    ctype = file.content_type or "image/jpeg"
+    if ctype not in ALLOWED_TYPES:
+        raise HTTPException(400, "Only images are allowed")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD:
+        raise HTTPException(413, "File too large (max 8MB)")
+    path = f"{APP_NAME}/uploads/{user.id}/{uuid.uuid4()}.{ALLOWED_TYPES[ctype]}"
+    result = await run_in_threadpool(put_object, path, data, ctype)
+    await db.files.insert_one({"storage_path": result["path"], "owner_id": user.id, "kind": kind, "content_type": ctype,
+                               "original_name": file.filename, "size": result.get("size"), "is_deleted": False,
+                               "created_at": now_iso()})
+    return {"path": result["path"]}
+
+
+@api.get("/files/{path:path}")
+async def download(path: str, token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+    if authorization and authorization.lower().startswith("bearer "):
+        user = await user_from_token(authorization[7:])
+    elif token:
+        user = await user_from_token(token)
+    else:
+        raise HTTPException(401, "Not authenticated")
+    f = await db.files.find_one({"storage_path": path, "is_deleted": False})
+    if not f:
+        raise HTTPException(404, "File not found")
+    allowed = f["owner_id"] == user.id or user.role == "admin"
+    if not allowed and f["kind"] == "receipt":
+        allowed = bool(await db.enrollments.find_one({"receipt_path": path, "teacher_id": user.id}))
+    if not allowed:
+        raise HTTPException(403, "Forbidden")
+    data, ctype = await run_in_threadpool(get_object, path)
+    return Response(content=data, media_type=f.get("content_type", ctype), headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ---------- Verification ----------
+@api.post("/verification/request")
+async def request_verification(body: VerifyIn, user: User = Depends(teacher_user)):
+    if user.verified:
+        raise HTTPException(400, "Already verified")
+    f = await db.files.find_one({"storage_path": body.doc_path, "owner_id": user.id, "kind": "verification", "is_deleted": False})
+    if not f:
+        raise HTTPException(400, "Invalid document")
+    await db.users.update_one({"_id": ObjectId(user.id)}, {"$set": {
+        "verification_status": "pending", "verification_doc": body.doc_path, "verification_note": body.note,
+        "verification_reason": None, "verification_requested_at": now_iso()}})
+    return user_out(User.from_mongo(await db.users.find_one({"_id": ObjectId(user.id)})))
+
+
+@api.get("/admin/verifications")
+async def admin_verifications(status: str = "pending", _: User = Depends(admin_user)):
+    docs = await db.users.find({"role": "teacher", "verification_status": status}).sort("verification_requested_at", -1).to_list(500)
+    out = []
+    for d in docs:
+        u = User.from_mongo(d)
+        out.append({**user_out(u), "courses_count": await db.courses.count_documents({"teacher_id": u.id})})
+    return out
+
+
+@api.get("/admin/stats")
+async def admin_stats(_: User = Depends(admin_user)):
+    return {
+        "pending": await db.users.count_documents({"role": "teacher", "verification_status": "pending"}),
+        "verified": await db.users.count_documents({"role": "teacher", "verified": True}),
+        "instructors": await db.users.count_documents({"role": "teacher"}),
+        "students": await db.users.count_documents({"role": "student"}),
+        "courses": await db.courses.count_documents({}),
+    }
+
+
+async def get_teacher(user_id: str) -> dict:
+    d = await db.users.find_one({"_id": oid(user_id), "role": "teacher"})
+    if not d:
+        raise HTTPException(404, "Instructor not found")
+    return d
+
+
+@api.post("/admin/verifications/{user_id}/approve")
+async def admin_approve(user_id: str, _: User = Depends(admin_user)):
+    await get_teacher(user_id)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"verified": True, "verification_status": "approved", "verification_reason": None}})
+    await db.courses.update_many({"teacher_id": user_id}, {"$set": {"teacher_verified": True}})
+    return user_out(User.from_mongo(await db.users.find_one({"_id": ObjectId(user_id)})))
+
+
+@api.post("/admin/verifications/{user_id}/reject")
+async def admin_reject(user_id: str, body: RejectIn, _: User = Depends(admin_user)):
+    await get_teacher(user_id)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"verified": False, "verification_status": "rejected", "verification_reason": body.reason}})
+    await db.courses.update_many({"teacher_id": user_id}, {"$set": {"teacher_verified": False}})
+    return user_out(User.from_mongo(await db.users.find_one({"_id": ObjectId(user_id)})))
+
+
 @api.get("/")
 async def root():
     return {"app": "TBIB-courses", "ok": True}
@@ -587,12 +776,32 @@ SEED_COURSES = [
 ]
 
 
+async def seed_admin():
+    email = ADMIN_EMAIL.strip().lower()
+    a = User(email=email, name="TBIB Admin", role="admin").to_mongo()
+    a["password_hash"] = hash_pw(ADMIN_PASSWORD)
+    try:
+        await db.users.update_one({"email": email}, {"$setOnInsert": a}, upsert=True)
+    except DuplicateKeyError:
+        pass
+    doc = await db.users.find_one({"email": email})
+    if doc.get("role") != "admin":
+        logger.error("ADMIN_EMAIL exists but is not an admin")
+
+
 @app.on_event("startup")
 async def seed():
     await db.users.create_index("email", unique=True)
+    await db.files.create_index("storage_path")
+    await seed_admin()
+    try:
+        await run_in_threadpool(init_storage)
+    except Exception:
+        logger.exception("Storage init failed")
     if await db.users.find_one({"email": "teacher@tbib.dz"}):
         return
     t = User(email="teacher@tbib.dz", name="Dr. Amina Benali", role="teacher", wilaya="16", instructor_type="doctor",
+             verified=True, verification_status="approved",
              bio="Maître-assistante en anatomie, CHU Mustapha Pacha.", ccp_account="0023456789 clé 45",
              baridimob_rip="00799999002345678945", phone="0550 12 34 56").to_mongo()
     t["password_hash"] = hash_pw("teacher123")
@@ -608,7 +817,7 @@ async def seed():
     owners = [(tid, "Dr. Amina Benali", "doctor"), (tid, "Dr. Amina Benali", "doctor"),
               (tsid, "Sara Mansouri", "top_student"), (tid, "Dr. Amina Benali", "doctor")]
     for sc, (oid_, oname, otype) in zip(SEED_COURSES, owners):
-        c = Course(teacher_id=oid_, teacher_name=oname, teacher_type=otype, **sc)
+        c = Course(teacher_id=oid_, teacher_name=oname, teacher_type=otype, teacher_verified=(otype == "doctor"), **sc)
         cid = str((await db.courses.insert_one(c.to_mongo())).inserted_id)
         lessons = [
             Lesson(course_id=cid, order=1, title="Introduction et objectifs",

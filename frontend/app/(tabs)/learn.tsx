@@ -11,6 +11,7 @@ import { api, Course, Enrollment } from "@/src/api";
 import { usesNativeTabs } from "@/src/navigation";
 import { Badge, Button, EmptyState, Icon, Loading, Segmented, formatPrice } from "@/src/components/ui";
 import { IMAGES, wilayaName } from "@/src/constants";
+import { ProtectedImage } from "@/src/components/ImageUpload";
 
 export default function Learn() {
   const { user } = useAuth();
@@ -138,8 +139,11 @@ function TeacherDashboard() {
                 {wilayaName(item.student_wilaya, lang)} · {item.payment_method === "ccp" ? t("ccp") : t("baridimob")} · {formatPrice(item.price, t("da"), t("free"))}
               </Text>
               <View style={[styles.refBox, { flexDirection: row }]}>
-                <Text style={styles.refLabel}>{t("ref")}:</Text>
-                <Text style={styles.refVal} selectable testID={`request-ref-${item.id}`}>{item.payment_ref}</Text>
+                {!!item.receipt_path && <ProtectedImage path={item.receipt_path} testID={`request-receipt-${item.id}`} size={56} />}
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.refLabel, { textAlign: ta }]}>{item.receipt_path ? t("viewReceipt") : t("ref")}</Text>
+                  <Text style={[styles.refVal, { textAlign: ta }]} selectable testID={`request-ref-${item.id}`}>{item.payment_ref || "—"}</Text>
+                </View>
               </View>
               {!!item.note && <Text style={[styles.meta, { textAlign: ta }]}>“{item.note}”</Text>}
               {item.status === "pending" && (

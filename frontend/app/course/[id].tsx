@@ -105,7 +105,7 @@ export default function CourseScreen() {
               <View style={{ flex: 1 }}>
                 <View style={[{ flexDirection: row, alignItems: "center", gap: spacing.sm, flexWrap: "wrap" }]}>
                   <Text style={styles.tName}>{teacher.name}</Text>
-                  <InstructorBadge type={teacher.instructor_type} testID="course-teacher-badge" />
+                  <InstructorBadge type={teacher.instructor_type} verified={teacher.verified} testID="course-teacher-badge" />
                 </View>
                 <Text style={[styles.tBio, { textAlign: ta }]} numberOfLines={2}>{teacher.bio || wilayaName(course.wilaya, lang)}</Text>
               </View>

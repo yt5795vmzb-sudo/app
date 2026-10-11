@@ -39,18 +39,26 @@ export function MedPattern({ color }: { color?: string }) {
   );
 }
 
-export function InstructorBadge({ type, small, testID }: { type?: string | null; small?: boolean; testID?: string }) {
+export function InstructorBadge({ type, small, testID, verified }: { type?: string | null; small?: boolean; testID?: string; verified?: boolean }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { t, row } = useI18n();
   if (!type) return null;
   const isDoc = type === "doctor";
   return (
-    <View testID={testID} style={[styles.badge, { flexDirection: row, backgroundColor: isDoc ? colors.brandTertiary : colors.accentSoft }, small && styles.small]}>
-      <Icon name={isDoc ? "doctor" : "school-outline"} size={small ? 12 : 14} color={isDoc ? colors.onBrandTertiary : colors.accent} />
-      <Text style={[styles.text, small && { fontSize: 10 }, { color: isDoc ? colors.onBrandTertiary : colors.accent }]} numberOfLines={1}>
-        {isDoc ? t("doctor") : t("topStudent")}
-      </Text>
+    <View style={[{ flexDirection: row, gap: 4, alignItems: "center", flexWrap: "wrap" }]}>
+      <View testID={testID} style={[styles.badge, { flexDirection: row, backgroundColor: isDoc ? colors.brandTertiary : colors.accentSoft }, small && styles.small]}>
+        <Icon name={isDoc ? "doctor" : "school-outline"} size={small ? 12 : 14} color={isDoc ? colors.onBrandTertiary : colors.accent} />
+        <Text style={[styles.text, small && { fontSize: 10 }, { color: isDoc ? colors.onBrandTertiary : colors.accent }]} numberOfLines={1}>
+          {isDoc ? t("doctor") : t("topStudent")}
+        </Text>
+      </View>
+      {verified && (
+        <View testID={testID ? `${testID}-verified` : undefined} style={[styles.badge, { flexDirection: row, backgroundColor: colors.brand }, small && styles.small]}>
+          <Icon name="check-decagram" size={small ? 12 : 14} color={colors.brandSecondary} />
+          {!small && <Text style={[styles.text, { color: colors.onBrand }]}>{t("verified")}</Text>}
+        </View>
+      )}
     </View>
   );
 }

@@ -42,7 +42,7 @@ export default function AuthScreen() {
         study_year: role === "student" || itype === "top_student" ? year : null,
         instructor_type: role === "teacher" ? itype : null,
       });
-      router.replace("/(tabs)" as any);
+      router.replace("/" as any);
     } catch (e: any) {
       setErr(e.message); toast(e.message, "error");
     } finally { setBusy(false); }

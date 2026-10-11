@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 2 testing (receipt uploads + verification/admin). Backend: 27/27 pytest tests passed covering POST /upload (auth-gated, image-only, kind validation), GET /files/{path} ACL (owner/admin/teacher-of-enrollment allowed; others 403; unauth 401; ?token= also works), /courses/{id}/enroll with receipt_path only / neither / someone-else's file, /teacher/requests includes receipt_path, /verification/request (teacher-only, foreign-file 400, already-verified 400), /admin/verifications pending|approved|rejected, /admin/stats, approve/reject propagation to teacher_verified on courses, register with role=admin returns 422. Real Emergent Object Storage round-trips succeeded (no transient 500s during run). Frontend (Expo web, 390x844): admin@tbib.dz lands on /admin screen; admin-screen, admin-tabs (Segmented), admin-logout-button all present; stats render 4 students / 2 instructors / 2 verified / 0 pending (correct after approving major in backend tests). major@tbib.dz login → tab-profile → profile-verification-card → /verification shows status banner 'حسابك موثّق ✓' (since major is now approved); upload/submit buttons correctly hidden in approved state. student@tbib.dz home shows 4 course-card-badge-{id}-verified badges (3 teacher + 1 major, now that major is verified). Checkout screen for student → checkout-receipt-upload, checkout-ref-input, checkout-submit-button all render. No red screen, no backend 500s observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global", "issues": ["Pre-existing react-native-web warnings persist (props.pointerEvents / shadow* deprecation). No functional impact."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration2.py", "/app/test_reports/pytest/iteration2.xml"],
+  "action_items": [
+    "Seed state note: major@tbib.dz is now verified=true (verification_status=approved) because the admin-approve test exercised real admin endpoints. If next iteration needs major to remain unverified for a UI retest, main agent should reset in Mongo: db.users.update_one({email:'major@tbib.dz'}, {$set:{verified:false, verification_status:'none', verification_doc:null, verification_note:null, verification_reason:null, verification_requested_at:null}}) and db.courses.update_many({teacher_id:'<majorId>'}, {$set:{teacher_verified:false}})."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now ~844 lines — above the 700-line split threshold. Consider splitting into routers (auth, courses, lessons, enrollments, reviews, ai, files, verification/admin).",
+    "put_object retry logic initializes storage_key before retrying but doesn't retry on all 5xx (only re-inits key on 503). Minor; current flow worked.",
+    "/files/{path:path} accepts auth via Authorization header OR ?token= query — good for native <Image> which can't send headers. ACL correctly scoped: owner | admin | enrollment teacher for receipts only (verification docs are owner+admin only).",
+    "enroll endpoint validates receipt ownership (owner_id==user.id, is_deleted:false) — good.",
+    "verification/request validates kind==='verification' and ownership — good.",
+    "admin cannot be registered publicly: RegisterIn.role Literal['student','teacher'] enforces 422. Admin seeded idempotently from env.",
+    "No input sanitization on verification_note/reason beyond length-less string — OK for internal UI but consider length caps."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration2.py"],
+  "success_rate": {"backend": "100% (27/27 iteration2) + 100% (31/31 iteration1 still green)", "frontend": "100% of iteration2 critical flows (admin login+screen+logout, major profile→verification, student verified badges on home, checkout receipt field)"},
+  "seed_data_creation": "Backend tests created: 1 TEST_ student (fresh_student) with 1 pending enrollment on 'Préparation au Résidanat — Pédiatrie' using a receipt upload; 1 TEST_adm_* user attempt (rejected 422); 2 receipt files + several verification files on Emergent object storage. major@tbib.dz state changed from unverified → approved (verified=true) by the admin-approve test; this cascades teacher_verified=true to 'Biochimie métabolique'. See action_items for reset snippet.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BASE_URL from EXPO_PUBLIC_BACKEND_URL. Pytest config in /app/backend/pytest.ini uses -n 2 --dist loadscope, so related tests must live in the same class/module (iteration2 tests group them intentionally). Tiny valid PNGs are generated inline in tests. Admin credentials in /app/memory/test_credentials.md. Note the seed-state drift noted above: major@tbib.dz is now verified; running test_iteration2.py again will skip the pending/approve subtests gracefully (they pytest.skip when state is not pending). Welcome-screen flow: /welcome → welcome-login-button → auth-email-input/auth-password-input (testID on TextInput directly, no descendant) → auth-submit-button. Checkout flow validated: checkout-receipt-upload / checkout-ref-input / checkout-submit-button present.",
+  "rca_of_issue": "N/A — no bugs found this iteration."
+}

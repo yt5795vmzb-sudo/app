@@ -25,7 +25,11 @@ Mobile app helping medical students across all Algerian wilayas (69) buy medical
 - Seed data: 2 instructors, 1 student, 4 courses
 - Tested: 31/31 backend tests + frontend flows passed
 
+## Iteration 2 (Oct 2026)
+- Receipt photo upload in checkout (Emergent Object Storage, auth-protected file route); instructor views receipt thumbnails/full-screen in dashboard
+- Instructor verification: upload proof doc + note → admin review (/admin screen, seeded admin) → verified badge on courses & profile; reject with reason + resubmit
+- Tested: 27/27 backend + frontend flows
+
 ## Backlog
-- P1: Receipt photo upload (object storage), course cover image upload
-- P1: Instructor verification badge (admin approval of doctors)
+- P1: Course cover image upload
 - P2: Promo codes/bundles, in-app messaging student↔instructor, QCM quizzes per lesson
