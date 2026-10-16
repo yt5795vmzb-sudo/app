@@ -619,7 +619,7 @@ async def ai_clear(user: User = Depends(current_user)):
 
 @api.post("/ai/chat")
 async def ai_chat(body: ChatIn, user: User = Depends(current_user)):
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+    from eamicointegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 
     history = await db.chat_messages.find({"user_id": user.id}).sort("created_at", -1).to_list(12)
     history.reverse()
